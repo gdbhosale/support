@@ -1,0 +1,30 @@
+ {
+    "name": "octal/support",
+    "description": "Octal Support Library",
+    "keywords": ["php", "laravel"],
+    "license": "MIT",
+    "homepage": "",
+    "support": {
+        "issues": "",
+        "source": ""
+    },
+    "version": "1.0.0",
+    "require": {
+        
+    },
+    "authors": [
+        {
+            "name": "Octal Support"
+        }
+    ],
+    "classmap": [
+        
+    ],
+    "autoload": {
+        "psr-4": {
+            "Octal\\Support\\": "src/"
+        },
+        "files": [
+        ]
+    }
+}
