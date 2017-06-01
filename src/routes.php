@@ -1,3 +1,3 @@
 <?php
 
-Route::post('/monitor', 'OController@process');
+Route::get('/jquery.process.js', 'Octal\Support\OController@process');
